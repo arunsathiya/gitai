@@ -24,7 +24,7 @@ func GenerateCommitMessage(diff string, apiKey string) (string, error) {
 
 1. Use the Conventional Commits format: <type>(<scope>): <description>
 2. Choose the most appropriate type (feat, update, fix, refactor, style, docs, test, chore)
-3. Identify the specific scope of the changes
+3. Identify the specific scope of the changes, and if not too relevant, skip mentioning the scope and just mention the type
 4. Write a concise but informative description of the changes, but limit to one line
 5. Aim for clarity and specificity in your message
 6. Analyze the entire diff to understand the full context of the changes
