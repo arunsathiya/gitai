@@ -1,13 +1,21 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+)
+
+const (
+	groqAPIURL = "https://api.groq.com/openai/v1/chat/completions"
 )
 
 func main() {
@@ -49,9 +57,20 @@ func main() {
 	// Print the diff
 	if diff == "" {
 		fmt.Println("No changes detected.")
-	} else {
-		fmt.Println(diff)
+		return
 	}
+
+	fmt.Println("Changes detected:")
+	fmt.Println(diff)
+
+	// Generate commit message using Groq API
+	commitMessage, err := generateCommitMessage(diff)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating commit message: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\nGenerated commit message:\n%s\n", commitMessage)
 }
 
 func getDiff(worktree *git.Worktree, commit *object.Commit) (string, error) {
@@ -143,4 +162,80 @@ func generateUnifiedDiff(oldContent, newContent string) string {
 
 func splitLines(s string) []string {
 	return strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
+}
+
+func generateCommitMessage(diff string) (string, error) {
+	apiKey := os.Getenv("GROQ_API_KEY")
+	if apiKey == "" {
+		return "", fmt.Errorf("GROQ_API_KEY environment variable is not set")
+	}
+
+	requestBody, err := json.Marshal(map[string]interface{}{
+		"messages": []map[string]string{
+			{
+				"role":    "system",
+				"content": "Generate a concise git commit message for the following diff. Use the Conventional Commits format: <type>(<scope>): <description>. Respond only with the commit message, without any additional text or explanations.",
+			},
+			{
+				"role":    "user",
+				"content": diff,
+			},
+		},
+		"model":       "llama-3.1-70b-versatile",
+		"temperature": 1,
+		"max_tokens":  8000,
+		"top_p":       1,
+		"stream":      false,
+		"stop":        nil,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", groqAPIURL, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result map[string]interface{}
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return "", err
+	}
+
+	choices, ok := result["choices"].([]interface{})
+	if !ok || len(choices) == 0 {
+		return "", fmt.Errorf("unexpected API response format")
+	}
+
+	message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected API response format")
+	}
+
+	content, ok := message["content"].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected API response format")
+	}
+
+	return strings.TrimSpace(content), nil
 }
