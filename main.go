@@ -125,37 +125,37 @@ func confirmCommitMessage(message string, attempt int) bool {
 }
 
 func getDiff(worktree *git.Worktree, commit *object.Commit) (string, error) {
-	var diff strings.Builder
-
-	// Get the status of the working tree
-	status, err := worktree.Status()
+	// Use the 'git diff' command to get the full diff
+	cmd := exec.Command("git", "diff", "HEAD")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error running git diff: %v", err)
 	}
 
-	for path, fileStatus := range status {
-		// Handle untracked files
-		if fileStatus.Staging == git.Untracked {
-			content, err := os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			diff.WriteString(fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\nindex 0000000..%x\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n%s",
-				path, path, plumbing.ComputeHash(plumbing.BlobObject, content), path, len(content), string(content)))
-			continue
+	diff := out.String()
+
+	// If there are no staged changes, also include untracked files
+	if diff == "" {
+		status, err := worktree.Status()
+		if err != nil {
+			return "", fmt.Errorf("error getting worktree status: %v", err)
 		}
 
-		// Handle modified files (both staged and unstaged)
-		if fileStatus.Staging != git.Unmodified || fileStatus.Worktree != git.Unmodified {
-			fileDiff, err := getFileDiff(worktree, commit, path)
-			if err != nil {
-				return "", err
+		for path, fileStatus := range status {
+			if fileStatus.Staging == git.Untracked {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					return "", fmt.Errorf("error reading untracked file %s: %v", path, err)
+				}
+				diff += fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\nindex 0000000..%x\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n%s",
+					path, path, plumbing.ComputeHash(plumbing.BlobObject, content), path, len(strings.Split(string(content), "\n")), string(content))
 			}
-			diff.WriteString(fileDiff)
 		}
 	}
 
-	return diff.String(), nil
+	return diff, nil
 }
 
 func getFileDiff(worktree *git.Worktree, commit *object.Commit, path string) (string, error) {
