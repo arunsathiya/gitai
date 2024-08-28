@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -22,15 +23,23 @@ const (
 )
 
 func main() {
-	err := godotenv.Load()
+	// Load environment variables from global .env file
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading .env file: %v\n", err)
-		// Note: We're not exiting here because the .env file is optional
+		fmt.Fprintf(os.Stderr, "Error getting user home directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	globalEnvPath := filepath.Join(homeDir, ".gitai.env")
+	err = godotenv.Load(globalEnvPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading global .env file (%s): %v\n", globalEnvPath, err)
+		fmt.Fprintf(os.Stderr, "You may need to create this file with your GROQ_API_KEY.\n")
 	}
 
 	// Check if GROQ_API_KEY is set
 	if os.Getenv("GROQ_API_KEY") == "" {
-		fmt.Fprintf(os.Stderr, "GROQ_API_KEY is not set. Please set it in your .env file or as an environment variable.\n")
+		fmt.Fprintf(os.Stderr, "GROQ_API_KEY is not set. Please set it in %s or as an environment variable.\n", globalEnvPath)
 		os.Exit(1)
 	}
 
