@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -18,7 +19,8 @@ import (
 )
 
 const (
-	groqAPIURL = "https://gateway.ai.cloudflare.com/v1/75d17a47b6c80ac40b0e7e44a4a8517d/gitai/groq/openai/v1/chat/completions"
+	groqAPIURL  = "https://gateway.ai.cloudflare.com/v1/75d17a47b6c80ac40b0e7e44a4a8517d/gitai/groq/openai/v1/chat/completions"
+	maxAttempts = 3
 )
 
 func main() {
@@ -83,11 +85,24 @@ func main() {
 		return
 	}
 
-	// Generate commit message using Groq API
-	commitMessage, err := generateCommitMessage(diff)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating commit message: %v\n", err)
-		os.Exit(1)
+	// Generate and confirm commit message
+	var commitMessage string
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		commitMessage, err = generateCommitMessage(diff)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating commit message: %v\n", err)
+			os.Exit(1)
+		}
+
+		confirmed := confirmCommitMessage(commitMessage, attempt)
+		if confirmed {
+			break
+		}
+
+		if attempt == maxAttempts {
+			fmt.Println("Maximum attempts reached. Exiting without committing.")
+			return
+		}
 	}
 
 	// Commit the changes
@@ -96,6 +111,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error committing changes: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func confirmCommitMessage(message string, attempt int) bool {
+	fmt.Printf("\nGenerated commit message (Attempt %d/%d):\n%s\n", attempt, maxAttempts, message)
+	fmt.Print("Do you want to use this commit message? (Y/n): ")
+
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+
+	return input == "" || input == "y" || input == "yes"
 }
 
 func getDiff(worktree *git.Worktree, commit *object.Commit) (string, error) {
