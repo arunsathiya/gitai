@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -60,9 +62,6 @@ func main() {
 		return
 	}
 
-	fmt.Println("Changes detected:")
-	fmt.Println(diff)
-
 	// Generate commit message using Groq API
 	commitMessage, err := generateCommitMessage(diff)
 	if err != nil {
@@ -70,7 +69,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("\nGenerated commit message:\n%s\n", commitMessage)
+	// Commit the changes
+	err = commitChanges(worktree, commitMessage)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error committing changes: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func getDiff(worktree *git.Worktree, commit *object.Commit) (string, error) {
@@ -238,4 +242,75 @@ func generateCommitMessage(diff string) (string, error) {
 	}
 
 	return strings.TrimSpace(content), nil
+}
+
+func commitChanges(worktree *git.Worktree, message string) error {
+	// Get the status of the working tree
+	status, err := worktree.Status()
+	if err != nil {
+		return err
+	}
+
+	// Add all changes to the staging area
+	for filepath, fileStatus := range status {
+		if fileStatus.Worktree != git.Unmodified {
+			_, err := worktree.Add(filepath)
+			if err != nil {
+				return fmt.Errorf("error adding file %s to staging area: %v", filepath, err)
+			}
+		}
+	}
+
+	repo, err := git.PlainOpen(".")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening repository: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get the user's name and email from Git config
+	config, err := repo.Config()
+	if err != nil {
+		return fmt.Errorf("error getting Git config: %v", err)
+	}
+
+	name := config.User.Name
+	email := config.User.Email
+
+	if name == "" {
+		name, err = getGlobalGitConfig("user.name")
+		if err != nil {
+			return fmt.Errorf("error getting Git user.name: %v", err)
+		}
+	}
+
+	if email == "" {
+		email, err = getGlobalGitConfig("user.email")
+		if err != nil {
+			return fmt.Errorf("error getting Git user.email: %v", err)
+		}
+	}
+
+	// Commit the changes
+	_, err = worktree.Commit(message, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  name,
+			Email: email,
+			When:  time.Now(),
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("error committing changes: %v", err)
+	}
+
+	return nil
+}
+
+func getGlobalGitConfig(key string) (string, error) {
+	cmd := exec.Command("git", "config", "--global", "--get", key)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
