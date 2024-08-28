@@ -87,3 +87,43 @@ func GitCommit(message string) error {
 	}
 	return nil
 }
+
+// EditorAmendCommit opens the last commit message in the default Git editor for amending
+func EditorAmendCommit() error {
+	// Prepare Git command to amend the commit using the configured editor
+	cmd := exec.Command("git", "commit", "--amend")
+
+	// Set up the command to use the terminal
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run the command
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to amend commit: %v", err)
+	}
+
+	// Check if the commit was actually amended
+	newMessage, err := GetLastCommitMessage()
+	if err != nil {
+		return fmt.Errorf("failed to get new commit message: %v", err)
+	}
+
+	if strings.TrimSpace(newMessage) == "" {
+		return fmt.Errorf("commit amendment was aborted")
+	}
+
+	fmt.Println("Commit amended successfully.")
+	return nil
+}
+
+// GetLastCommitMessage retrieves the message of the last commit
+func GetLastCommitMessage() (string, error) {
+	cmd := exec.Command("git", "log", "-1", "--pretty=%B")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get last commit message: %v", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}

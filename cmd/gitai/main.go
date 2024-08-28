@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/arunsathiya/gitai/internal/ai"
 	"github.com/arunsathiya/gitai/internal/config"
@@ -87,5 +89,18 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error committing changes: %v\n", err)
 		os.Exit(1)
+	}
+
+	fmt.Println("Commit created. Would you like to review and potentially amend the commit message? (y/N)")
+	reader := bufio.NewReader(os.Stdin)
+	response, _ := reader.ReadString('\n')
+	response = strings.ToLower(strings.TrimSpace(response))
+
+	if response == "y" || response == "yes" {
+		err = gitops.EditorAmendCommit()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error amending commit: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
