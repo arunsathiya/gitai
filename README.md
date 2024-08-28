@@ -5,10 +5,11 @@ GitAI is a Go-based command-line tool that uses AI to automatically generate mea
 ## Features
 
 - Automatically detects changes in your Git repository
-- Generates commit messages using the Groq API with LLaMA 3.1 70B model on Groq
-- Follows Conventional Commits format for generated messages
+- Generates commit messages using the Groq API with LLaMA 3.1 70B model on [Groq](https://groq.com/)
+- Follows [Conventional Commits format](https://www.conventionalcommits.org/en/v1.0.0/) for generated messages
 - Handles both staged and unstaged changes, including new files
 - Allows user confirmation before committing changes
+- Allows amending last commit if needed
 
 ## Prerequisites
 
@@ -78,7 +79,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License
+[MIT License](./LICENSE)
 
 ## Disclaimer
 
