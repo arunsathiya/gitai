@@ -88,6 +88,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error committing changes: %v\n", err)
 		os.Exit(1)
 	}
-
-	fmt.Println("Changes committed successfully!")
 }

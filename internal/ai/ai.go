@@ -23,7 +23,7 @@ func GenerateCommitMessage(diff string, apiKey string) (string, error) {
 				"content": `You are a highly skilled developer tasked with generating precise and meaningful git commit messages. Follow these guidelines:
 
 1. Use the Conventional Commits format: <type>(<scope>): <description>
-2. Choose the most appropriate type (feat, fix, refactor, style, docs, test, chore, etc.)
+2. Choose the most appropriate type (feat, update, fix, refactor, style, docs, test, chore)
 3. Identify the specific scope of the changes
 4. Write a concise but informative description of the changes, but limit to one line
 5. Aim for clarity and specificity in your message
