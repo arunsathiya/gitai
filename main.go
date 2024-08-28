@@ -78,26 +78,37 @@ func main() {
 }
 
 func getDiff(worktree *git.Worktree, commit *object.Commit) (string, error) {
-	var diff string
+	var diff strings.Builder
 
-	// Get the changes between the working tree and the commit
+	// Get the status of the working tree
 	status, err := worktree.Status()
 	if err != nil {
 		return "", err
 	}
 
 	for path, fileStatus := range status {
-		if fileStatus.Worktree != git.Unmodified {
-			// Get the diff for this file
+		// Handle untracked files
+		if fileStatus.Staging == git.Untracked {
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return "", err
+			}
+			diff.WriteString(fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\nindex 0000000..%x\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n%s",
+				path, path, plumbing.ComputeHash(plumbing.BlobObject, content), path, len(content), string(content)))
+			continue
+		}
+
+		// Handle modified files (both staged and unstaged)
+		if fileStatus.Staging != git.Unmodified || fileStatus.Worktree != git.Unmodified {
 			fileDiff, err := getFileDiff(worktree, commit, path)
 			if err != nil {
 				return "", err
 			}
-			diff += fileDiff
+			diff.WriteString(fileDiff)
 		}
 	}
 
-	return diff, nil
+	return diff.String(), nil
 }
 
 func getFileDiff(worktree *git.Worktree, commit *object.Commit, path string) (string, error) {
@@ -139,7 +150,7 @@ func getFileDiff(worktree *git.Worktree, commit *object.Commit, path string) (st
 		plumbing.ComputeHash(plumbing.BlobObject, []byte(commitContent)),
 		plumbing.ComputeHash(plumbing.BlobObject, worktreeContent),
 		path, path,
-		len(commitContent), len(worktreeContent),
+		len(strings.Split(commitContent, "\n")), len(strings.Split(string(worktreeContent), "\n")),
 		generateUnifiedDiff(commitContent, string(worktreeContent))), nil
 }
 
