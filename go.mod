@@ -1,4 +1,4 @@
-module github.com/arunsathiya/llama-commits
+module github.com/arunsathiya/gitai
 
 go 1.23.0
 
