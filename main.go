@@ -209,8 +209,20 @@ func generateCommitMessage(diff string) (string, error) {
 	requestBody, err := json.Marshal(map[string]interface{}{
 		"messages": []map[string]string{
 			{
-				"role":    "system",
-				"content": "Generate a concise git commit message for the following diff. Use the Conventional Commits format: <type>(<scope>): <description>. Respond only with the commit message, without any additional text or explanations.",
+				"role": "system",
+				"content": `You are a highly skilled developer tasked with generating precise and meaningful git commit messages. Follow these guidelines:
+
+1. Use the Conventional Commits format: <type>(<scope>): <description>
+2. Choose the most appropriate type (feat, fix, refactor, style, docs, test, chore, etc.)
+3. Identify the specific scope of the changes
+4. Write a concise but informative description of the changes, but limit to one line
+5. Aim for clarity and specificity in your message
+6. Analyze the entire diff to understand the full context of the changes
+7. Focus on the most significant changes if there are multiple modifications
+8. Avoid generic messages like "Update file" or "Fix bug"
+9. Do not mention "using AI" or "automatic commit" in the message
+
+Respond only with the commit message, without any additional text or explanations.`,
 			},
 			{
 				"role":    "user",
@@ -293,41 +305,12 @@ func commitChanges(worktree *git.Worktree, message string) error {
 		}
 	}
 
-	repo, err := git.PlainOpen(".")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening repository: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Get the user's name and email from Git config
-	config, err := repo.Config()
-	if err != nil {
-		return fmt.Errorf("error getting Git config: %v", err)
-	}
-
-	name := config.User.Name
-	email := config.User.Email
-
-	if name == "" {
-		name, err = getGlobalGitConfig("user.name")
-		if err != nil {
-			return fmt.Errorf("error getting Git user.name: %v", err)
-		}
-	}
-
-	if email == "" {
-		email, err = getGlobalGitConfig("user.email")
-		if err != nil {
-			return fmt.Errorf("error getting Git user.email: %v", err)
-		}
-	}
-
 	err = gitAdd(".")
 	if err != nil {
 		return err
 	}
 
-	err = gitCommit(message, name, email)
+	err = gitCommit(message)
 	if err != nil {
 		return err
 	}
@@ -335,28 +318,13 @@ func commitChanges(worktree *git.Worktree, message string) error {
 	return nil
 }
 
-func getGlobalGitConfig(key string) (string, error) {
-	cmd := exec.Command("git", "config", "--global", "--get", key)
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
 func gitAdd(path string) error {
 	cmd := exec.Command("git", "add", path)
 	return cmd.Run()
 }
 
-func gitCommit(message, name, email string) error {
+func gitCommit(message string) error {
 	cmd := exec.Command("git", "commit", "-m", message)
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("GIT_AUTHOR_NAME=%s", name),
-		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", email),
-		fmt.Sprintf("GIT_COMMITTER_NAME=%s", name),
-		fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", email),
-	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git commit failed: %v\nOutput: %s", err, output)
