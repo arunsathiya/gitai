@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/eiannone/keyboard"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -88,8 +89,37 @@ func GitCommit(message string) error {
 	return nil
 }
 
-// EditorAmendCommit opens the last commit message in the default Git editor for amending
+// EditorAmendCommit handles the amendment flow with immediate input
 func EditorAmendCommit() error {
+	fmt.Print("Do you want to amend the last commit? [Y/n]: ")
+
+	if err := keyboard.Open(); err != nil {
+		return fmt.Errorf("error opening keyboard: %v", err)
+	}
+	defer keyboard.Close()
+
+	char, key, err := keyboard.GetSingleKey()
+	if err != nil {
+		return fmt.Errorf("error reading input: %v", err)
+	}
+
+	fmt.Println() // Print newline for better formatting
+
+	input := strings.ToLower(string(char))
+
+	switch {
+	case input == "y" || key == keyboard.KeyEnter:
+		return performAmendment()
+	case input == "n":
+		fmt.Println("Amendment cancelled.")
+		return nil
+	default:
+		fmt.Println("Invalid input. Please enter 'y' or 'n'.")
+		return EditorAmendCommit() // Recursively ask again
+	}
+}
+
+func performAmendment() error {
 	// Prepare Git command to amend the commit using the configured editor
 	cmd := exec.Command("git", "commit", "--amend")
 

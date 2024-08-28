@@ -13,6 +13,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
 	github.com/cloudflare/circl v1.4.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.1 // indirect
+	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/gliderlabs/ssh v0.3.7 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
