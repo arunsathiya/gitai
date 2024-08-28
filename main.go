@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	groqAPIURL = "https://api.groq.com/openai/v1/chat/completions"
+	groqAPIURL = "https://gateway.ai.cloudflare.com/v1/75d17a47b6c80ac40b0e7e44a4a8517d/gitai/groq/openai/v1/chat/completions"
 )
 
 func main() {
