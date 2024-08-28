@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -21,6 +22,18 @@ const (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading .env file: %v\n", err)
+		// Note: We're not exiting here because the .env file is optional
+	}
+
+	// Check if GROQ_API_KEY is set
+	if os.Getenv("GROQ_API_KEY") == "" {
+		fmt.Fprintf(os.Stderr, "GROQ_API_KEY is not set. Please set it in your .env file or as an environment variable.\n")
+		os.Exit(1)
+	}
+
 	// Open the repository
 	repo, err := git.PlainOpen(".")
 	if err != nil {
