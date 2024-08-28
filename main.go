@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -323,17 +322,14 @@ func commitChanges(worktree *git.Worktree, message string) error {
 		}
 	}
 
-	// Commit the changes
-	_, err = worktree.Commit(message, &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  name,
-			Email: email,
-			When:  time.Now(),
-		},
-	})
-
+	err = gitAdd(".")
 	if err != nil {
-		return fmt.Errorf("error committing changes: %v", err)
+		return err
+	}
+
+	err = gitCommit(message, name, email)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -346,4 +342,24 @@ func getGlobalGitConfig(key string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+func gitAdd(path string) error {
+	cmd := exec.Command("git", "add", path)
+	return cmd.Run()
+}
+
+func gitCommit(message, name, email string) error {
+	cmd := exec.Command("git", "commit", "-m", message)
+	cmd.Env = append(cmd.Env,
+		fmt.Sprintf("GIT_AUTHOR_NAME=%s", name),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", email),
+		fmt.Sprintf("GIT_COMMITTER_NAME=%s", name),
+		fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", email),
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git commit failed: %v\nOutput: %s", err, output)
+	}
+	return nil
 }
