@@ -20,7 +20,7 @@ import (
 
 const (
 	groqAPIURL  = "https://gateway.ai.cloudflare.com/v1/75d17a47b6c80ac40b0e7e44a4a8517d/gitai/groq/openai/v1/chat/completions"
-	maxAttempts = 3
+	maxAttempts = 5
 )
 
 func main() {
